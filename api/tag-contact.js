@@ -1,4 +1,15 @@
 export default async function handler(req, res) {
+
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*'); // or 'https://www.heroic.us'
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, message: 'Method not allowed' });
+  }
+
+  
   const { email, tag } = req.body;
 
   const apiKey = process.env.ACTIVE_CAMPAIGN_API_KEY;
