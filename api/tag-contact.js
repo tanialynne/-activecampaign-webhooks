@@ -1,50 +1,36 @@
 export default async function handler(req, res) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*'); // or 'https://www.heroic.us'
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Handle preflight (OPTIONS) request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, message: 'Method not allowed' });
-  }
-
   const { email, tag } = req.body;
 
-  const apiKey = process.env.ACTIVECAMPAIGN_API_KEY;
-  const accountDomain = process.env.ACTIVECAMPAIGN_DOMAIN;
+  const apiKey = process.env.ACTIVE_CAMPAIGN_API_KEY;
+  const apiBase = process.env.ACTIVE_CAMPAIGN_API_BASE;
 
   if (!email || !tag) {
     return res.status(400).json({ success: false, message: 'Missing email or tag' });
   }
 
   try {
-    // Get the contact ID from AC
-    const contactRes = await fetch(`https://${accountDomain}/api/3/contacts?email=${encodeURIComponent(email)}`, {
+    // 🔍 Fetch contact
+    const contactRes = await fetch(`${apiBase}/api/3/contacts?email=${encodeURIComponent(email)}`, {
       headers: {
         'Api-Token': apiKey
       }
     });
 
     const contactData = await contactRes.json();
-    const contactId = contactData.contacts?.[0]?.id;
 
-    if (!contactId) {
-      return res.status(404).json({ success: false, message: 'Contact not found' });
+    if (!contactData.contacts?.[0]?.id) {
+      return res.status(404).json({ success: false, message: 'Contact not found', contactData });
     }
 
-    // Get tag ID from env (must be set manually in your project)
+    const contactId = contactData.contacts[0].id;
+
     const tagId = process.env[tag.toUpperCase()];
     if (!tagId) {
-      return res.status(400).json({ success: false, message: `Tag ID not found for tag name '${tag}'` });
+      return res.status(400).json({ success: false, message: `Tag ID not found for ${tag}` });
     }
 
-    // Apply the tag
-    const tagRes = await fetch(`https://${accountDomain}/api/3/contactTags`, {
+    // 🔍 Apply tag
+    const tagRes = await fetch(`${apiBase}/api/3/contactTags`, {
       method: 'POST',
       headers: {
         'Api-Token': apiKey,
@@ -59,9 +45,14 @@ export default async function handler(req, res) {
     });
 
     const tagData = await tagRes.json();
-    res.status(200).json({ success: true, result: tagData });
+
+    if (!tagRes.ok) {
+      return res.status(500).json({ success: false, message: 'Failed to apply tag', tagData });
+    }
+
+    return res.status(200).json({ success: true, result: tagData });
   } catch (err) {
-    console.error("Server error:", err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error('🔥 Server error:', err);
+    return res.status(500).json({ success: false, message: 'fetch failed', error: err.message });
   }
 }
