@@ -35,12 +35,6 @@ export default async function handler(req, res) {
     if (!contactId) {
       return res.status(404).json({ success: false, message: 'Contact not found', contactData });
     }
-
-    const tagId = process.env[tag.toUpperCase()];
-    if (!tagId) {
-      return res.status(400).json({ success: false, message: `Tag ID not found for ${tag}` });
-    }
-
     const tagRes = await fetch(`${apiBase}/api/3/contactTags`, {
       method: 'POST',
       headers: {
