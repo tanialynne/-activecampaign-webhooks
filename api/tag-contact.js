@@ -13,12 +13,12 @@ export default async function handler(req, res) {
   // res.setHeader('Access-Control-Allow-Origin', 'https://www.heroic.us');
 
   // 👇 Your existing code below this line
-  const { email, tagId } = req.body;
+  const { email, tag } = req.body;
 
   const apiKey = process.env.ACTIVE_CAMPAIGN_API_KEY;
   const apiBase = process.env.ACTIVE_CAMPAIGN_API_BASE;
 
-  if (!email || !tagId) {
+  if (!email || !tag) {
     return res.status(400).json({ success: false, message: 'Missing email or tag' });
   }
 
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         contactTag: {
           contact: contactId,
-          tag: tagId
+          tag: tag
         }
       })
     });
