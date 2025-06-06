@@ -1,18 +1,12 @@
 export default async function handler(req, res) {
-  // ✅ Allow CORS from anywhere (or restrict to 'https://www.heroic.us')
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // ✅ Handle preflight request
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // 🔒 You can also change '*' to 'https://www.heroic.us' for stricter security:
-  // res.setHeader('Access-Control-Allow-Origin', 'https://www.heroic.us');
-
-  // 👇 Your existing code below this line
   const { email, tag } = req.body;
 
   const apiKey = process.env.ACTIVE_CAMPAIGN_API_KEY;
@@ -23,6 +17,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Step 1: Try to find the contact
+    let contactId;
     const contactRes = await fetch(`${apiBase}/api/3/contacts?email=${encodeURIComponent(email)}`, {
       headers: {
         'Api-Token': apiKey
@@ -30,11 +26,34 @@ export default async function handler(req, res) {
     });
 
     const contactData = await contactRes.json();
-    const contactId = contactData.contacts?.[0]?.id;
 
-    if (!contactId) {
-      return res.status(404).json({ success: false, message: 'Contact not found', contactData });
+    if (contactData.contacts?.length > 0) {
+      contactId = contactData.contacts[0].id;
+    } else {
+      // Step 2: Create the contact
+      const createRes = await fetch(`${apiBase}/api/3/contacts`, {
+        method: 'POST',
+        headers: {
+          'Api-Token': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contact: {
+            email: email
+          }
+        })
+      });
+
+      const createData = await createRes.json();
+
+      if (!createRes.ok || !createData.contact?.id) {
+        return res.status(500).json({ success: false, message: 'Failed to create contact', createData });
+      }
+
+      contactId = createData.contact.id;
     }
+
+    // Step 3: Apply the tag
     const tagRes = await fetch(`${apiBase}/api/3/contactTags`, {
       method: 'POST',
       headers: {
@@ -56,6 +75,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ success: true, result: tagData });
+
   } catch (err) {
     console.error('🔥 Server error:', err);
     return res.status(500).json({ success: false, message: 'fetch failed', error: err.message });
